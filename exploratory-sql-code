@@ -1,1 +1,61 @@
-Needs copied in.
+SELECT *
+FROM layoffs_staged_dupes_del;
+
+SELECT MAX(total_laid_off), MAX(percentage_laid_off)
+FROM layoffs_staged_dupes_del;
+
+-- Companies that totally shutdown/laid off everyone
+SELECT *
+FROM layoffs_staged_dupes_del
+WHERE percentage_laid_off = 1
+ORDER BY total_laid_off;
+
+-- Most amount of layoffs
+SELECT company, SUM(total_laid_off) as total_layoffs, MIN(`date`) as start_date, MAX(`date`) as latest_date
+FROM layoffs_staged_dupes_del
+GROUP BY company
+ORDER BY total_layoffs DESC;
+
+-- Layoffs per industry
+SELECT industry, SUM(total_laid_off) as total_layoffs
+FROM layoffs_staged_dupes_del
+GROUP BY industry;
+
+-- Layoffs per country
+SELECT country, SUM(total_laid_off) as total_layoffs
+FROM layoffs_staged_dupes_del
+GROUP BY country
+ORDER BY total_layoffs ASC;
+
+-- Layoffs per year
+SELECT YEAR(`date`) AS year, SUM(total_laid_off) as total_layoffs
+FROM layoffs_staged_dupes_del
+GROUP BY year
+ORDER BY total_layoffs DESC;
+
+-- Rolling sum of layoffs
+WITH rolling_total AS (
+SELECT SUBSTRING(`date`,1,7) as `month`, SUM(total_laid_off) as total_layoffs
+FROM layoffs_staged_dupes_del
+GROUP BY `month`
+ORDER BY `month` ASC
+)
+SELECT `month`, total_layoffs, SUM(total_layoffs) OVER(ORDER BY `month`) as rolling_total
+FROM rolling_total;
+
+-- Ranking companies with most layoffs in each year
+WITH company_year AS (
+SELECT company, YEAR(`date`) AS `year`, SUM(total_laid_off) as total_layoffs
+FROM layoffs_staged_dupes_del
+GROUP BY company, `year`
+ORDER BY total_layoffs DESC
+),
+company_ranking AS (
+SELECT *, DENSE_RANK() OVER (PARTITION BY `year` ORDER BY total_layoffs DESC) AS ranking
+FROM company_year
+)
+SELECT *
+FROM company_ranking
+WHERE ranking <= 5
+ORDER BY `year` ASC;
+
